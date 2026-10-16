@@ -1,0 +1,257 @@
+// Afuera — data model for the content operations platform.
+// Targets MongoDB. Documents use ObjectId `_id`s, a fractional `position` for board
+// ordering, and a Workspace boundary so every row is scoped to a real tenant.
+//
+// MongoDB notes:
+// - On MongoDB, Prisma always runs in `relationMode = "prisma"`: referential actions
+//   (`onDelete: Cascade`) are emulated by Prisma Client with extra queries, so every
+//   relation scalar field is indexed to keep those emulated cascades cheap.
+// - Nested writes and emulated cascades run inside transactions, which MongoDB only
+//   supports on a REPLICA SET. Use MongoDB Atlas (a replica set by default) or a local
+//   single-node replica set — a bare standalone `mongod` will reject those writes.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" for local dev; the rhel target is what Vercel's serverless runtime needs.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Stage {
+  IDEAS
+  RESEARCH
+  WRITING
+  DESIGN
+  REVIEW
+  LEGAL
+  APPROVAL
+  SCHEDULED
+  PUBLISHED
+  REPURPOSE
+  ARCHIVED
+}
+
+enum ContentType {
+  POST
+  ARTICLE
+  VIDEO
+  EMAIL
+  AD
+  STORY
+}
+
+enum Channel {
+  INSTAGRAM
+  LINKEDIN
+  X
+  TIKTOK
+  BLOG
+  EMAIL
+  YOUTUBE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Workspace {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String           @unique
+  members     Member[]
+  campaigns   Campaign[]
+  items       ContentItem[]
+  metrics     DailyMetric[]
+  brandKit    BrandKit?
+  automations AutomationRule[]
+  assets      Asset[]
+  projects    Project[]
+  tasks       Task[]
+  createdAt   DateTime         @default(now())
+}
+
+model Member {
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  initials String
+  color    String // hex, drives the avatar
+  role     String
+  online   Boolean @default(false)
+  // Links this member to a Supabase auth user id (a UUID), or a "seed_*" placeholder for
+  // demo members. Required + unique on purpose: a MongoDB unique index rejects a second
+  // null/missing value (Prisma issue #12827, no sparse index), so this is never empty.
+  authUserId  String        @unique
+  email       String?
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String        @db.ObjectId
+  items       ContentItem[]
+  createdAt   DateTime      @default(now())
+
+  @@index([workspaceId])
+}
+
+model Campaign {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  color       String // hex
+  objective   String
+  status      String        @default("On track")
+  health      Int           @default(80)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String        @db.ObjectId
+  items       ContentItem[]
+  createdAt   DateTime      @default(now())
+
+  @@index([workspaceId])
+}
+
+model ContentItem {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  type        ContentType @default(POST)
+  channel     Channel     @default(INSTAGRAM)
+  stage       Stage       @default(IDEAS)
+  // Fractional index within a stage column. Lower = higher in the column.
+  position    Float       @default(1000)
+  priority    Priority    @default(MEDIUM)
+  aiScore     Int         @default(60)
+  comments    Int         @default(0)
+  attachments Int         @default(0)
+  dueDate     DateTime?
+  publishAt   DateTime?
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String        @db.ObjectId
+  campaign    Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId  String        @db.ObjectId
+  owner       Member        @relation(fields: [ownerId], references: [id])
+  ownerId     String        @db.ObjectId
+  metrics     DailyMetric[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId, stage, position])
+  @@index([campaignId])
+  @@index([ownerId])
+}
+
+model DailyMetric {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  // Stored at midnight; MongoDB has no date-only type, so this is a full DateTime.
+  date        DateTime
+  // Denormalised from the content item so channel breakdowns are a single groupBy.
+  channel     Channel
+  impressions Int      @default(0)
+  reach       Int      @default(0)
+  engagements Int      @default(0)
+  clicks      Int      @default(0)
+
+  content       ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  contentItemId String      @db.ObjectId
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String      @db.ObjectId
+
+  @@unique([contentItemId, date])
+  @@index([workspaceId, date])
+}
+
+model BrandKit {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId     String    @unique @db.ObjectId
+  colors          Json // [{ name, hex }]
+  fontDisplay     String
+  fontBody        String
+  voiceRules      Json // [{ title, detail }]
+  hashtags        String[]
+  legalDisclaimer String
+  // Compact paragraph fed to the AI Workspace system prompt.
+  voiceSummary    String
+  updatedAt       DateTime  @updatedAt
+}
+
+enum AutomationTrigger {
+  CARD_ENTERS_STAGE
+  PUBLISH_DATE_ARRIVES
+  CAMPAIGN_ENDS
+}
+
+enum AutomationAction {
+  MOVE_TO_STAGE
+  NOTIFY_SLACK
+  CREATE_TASK
+  ARCHIVE
+}
+
+model AutomationRule {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String            @db.ObjectId
+  name         String
+  enabled      Boolean           @default(false)
+  trigger      AutomationTrigger
+  triggerStage Stage? // for CARD_ENTERS_STAGE
+  action       AutomationAction
+  actionStage  Stage? // for MOVE_TO_STAGE
+  order        Int               @default(0)
+  createdAt    DateTime          @default(now())
+
+  @@index([workspaceId])
+}
+
+model Asset {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String    @db.ObjectId
+  name         String
+  kind         String // Image | Video | Document
+  mimeType     String
+  path         String // object path within the Supabase Storage "assets" bucket
+  size         Int
+  uploaderId   String?
+  uploaderName String?
+  createdAt    DateTime  @default(now())
+
+  @@index([workspaceId])
+}
+
+model Project {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String    @db.ObjectId
+  name        String
+  description String?
+  color       String    @default("#2E63F6")
+  status      String    @default("Active") // Active | On hold | Done
+  dueDate     DateTime?
+  tasks       Task[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId])
+}
+
+model Task {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String    @db.ObjectId
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String?   @db.ObjectId
+  title       String
+  done        Boolean   @default(false)
+  priority    String    @default("Medium") // Low | Medium | High
+  dueDate     DateTime?
+  position    Float     @default(1000)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, done])
+  @@index([projectId])
+}

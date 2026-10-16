@@ -1,0 +1,29 @@
+# Dependencies
+**/node_modules/
+
+# Next.js build output
+**/.next/
+**/build/
+**/out/
+
+# Env files (the .env.example template stays tracked)
+.env
+.env*.local
+**/.env
+**/.env*.local
+
+# Prisma generated client (regenerated via `prisma generate`)
+**/node_modules/.prisma/
+
+# TypeScript / Next ambient types (regenerated)
+**/next-env.d.ts
+
+# Logs
+*.log
+**/*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
