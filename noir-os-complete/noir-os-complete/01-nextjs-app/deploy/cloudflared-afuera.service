@@ -1,0 +1,23 @@
+# Dedicated systemd service for the Afuera Cloudflare tunnel.
+# Install as /etc/systemd/system/cloudflared-afuera.service:
+#   sudo cp deploy/cloudflared-afuera.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cloudflared-afuera
+#
+# This is SEPARATE from the shared `cloudflared.service` (tunnel `soma`). Do NOT run
+# `cloudflared service install` for afuera — that clobbers the shared one. And never
+# write afuera into /etc/cloudflared/config.yml (that is the shared tunnel's config).
+# If `cloudflared` isn't at the path below, use `command -v cloudflared` to find it.
+
+[Unit]
+Description=cloudflared tunnel (afuera)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate --config /etc/cloudflared/afuera.yml run
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

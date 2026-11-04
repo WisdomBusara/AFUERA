@@ -1,0 +1,31 @@
+# Dedicated MongoDB for Afuera — a single-node REPLICA SET.
+#
+# Why its own Mongo and not the shared `mongodb` container the other projects use:
+# Prisma's MongoDB connector uses transactions (nested writes + emulated cascade
+# deletes), which MongoDB only supports on a replica set. The shared `mongodb` is a
+# standalone; converting it would risk koki and the others. This runs isolated on
+# 127.0.0.1:27018 so it never clashes with the shared Mongo on 27017.
+#
+# Bring up + initialise the replica set once (see deploy/TUNNEL.md step 2):
+#   docker compose -f deploy/mongo/docker-compose.mongo.yml up -d
+#   docker exec afuera-mongo mongosh --quiet --eval \
+#     'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27018"}]})'
+#
+# Then DATABASE_URL (in .env.production):
+#   mongodb://127.0.0.1:27018/afuera?replicaSet=rs0&directConnection=true
+# (directConnection=true keeps the driver talking to this node directly, regardless of
+#  the host the replica set advertises internally.)
+
+services:
+  afuera-mongo:
+    image: mongo:7
+    container_name: afuera-mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "127.0.0.1:27018:27017"   # loopback only; the tunnel/app reach it locally
+    volumes:
+      - afuera-mongo-data:/data/db
+    restart: unless-stopped
+
+volumes:
+  afuera-mongo-data:

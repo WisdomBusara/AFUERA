@@ -1,0 +1,31 @@
+# Afuera / Noir OS — systemd unit. Install as /etc/systemd/system/afuera.service:
+#   sudo cp deploy/afuera.service /etc/systemd/system/afuera.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now afuera
+#
+# Mirrors koki.service. The dedicated Cloudflare tunnel reaches this on 127.0.0.1:3011.
+# Next loads .env.production from WorkingDirectory at start, so server-side secrets
+# (DATABASE_URL, ANTHROPIC_API_KEY, RESEND_API_KEY, CRON_SECRET) live in that file,
+# NOT here. NEXT_PUBLIC_* are baked in at BUILD time, not read here.
+#
+# WorkingDirectory assumes a symlink that resolves the nested app path:
+#   sudo ln -sfn /opt/afuera/noir-os-complete/noir-os-complete/01-nextjs-app /opt/afuera-app
+
+[Unit]
+Description=Afuera / Noir OS (Next.js 15)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/afuera-app
+Environment=NODE_ENV=production
+Environment=PORT=3011
+# Bind to loopback only; the Cloudflare tunnel is the public listener.
+ExecStart=/usr/bin/env npm run start -- -H 127.0.0.1 -p 3011
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+# cloudflared config for the Afuera tunnel. Install on the VPS at
+# /etc/cloudflared/afuera.yml  — NOT /etc/cloudflared/config.yml (that's the SHARED
+# tunnel's config for the other projects; overwriting it takes them down).
+#
+# This is its own tunnel + its own service (deploy/cloudflared-afuera.service), so it
+# never touches the shared cloudflared.service.
+#
+# Create the tunnel + register DNS once (this is the "register the tunnel DNS" step —
+# it writes a proxied CNAME afuera -> <id>.cfargotunnel.com in the wisdombusara.com zone):
+#   cloudflared tunnel create afuera
+#   cloudflared tunnel route dns --overwrite-dns <AFUERA_TUNNEL_ID> afuera.wisdombusara.com
+# then put its id + credentials file path below.
+
+tunnel: <AFUERA_TUNNEL_ID>                                     # e.g. e3b99c03-17f3-4d3a-9c22-cc6b4ad7f6b7
+credentials-file: /root/.cloudflared/<AFUERA_TUNNEL_ID>.json  # created by `tunnel create`; keep secret, not in git
+
+ingress:
+  - hostname: afuera.wisdombusara.com
+    service: http://localhost:3011     # the afuera.service Next app
+  - service: http_status:404

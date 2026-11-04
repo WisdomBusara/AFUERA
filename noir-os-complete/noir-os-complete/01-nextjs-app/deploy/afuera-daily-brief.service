@@ -1,0 +1,14 @@
+# Afuera daily brief — replaces Vercel Cron on the VPS. Oneshot hit to the cron route
+# with the CRON_SECRET bearer token (read from the app's .env.production). Paired with
+# afuera-daily-brief.timer.
+#   sudo cp deploy/afuera-daily-brief.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now afuera-daily-brief.timer
+
+[Unit]
+Description=Afuera daily brief email (POST-less GET to /api/cron/daily-brief)
+After=network-online.target afuera.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/afuera-app/.env.production
+ExecStart=/usr/bin/curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3011/api/cron/daily-brief

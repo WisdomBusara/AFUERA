@@ -1,0 +1,12 @@
+# Fires the daily brief at 13:00 UTC — the same schedule the app's vercel.json used
+# ("0 13 * * *"). Adjust OnCalendar to your preferred local send time if you like.
+
+[Unit]
+Description=Run the Afuera daily brief every morning
+
+[Timer]
+OnCalendar=*-*-* 13:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
