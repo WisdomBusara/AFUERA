@@ -56,6 +56,8 @@ docker exec afuera-mongo mongo --quiet --eval 'rs.status().myState' # 1 = primar
 cd /opt/afuera-app
 npm ci
 npm run build          # prisma generate + next build (NEXT_PUBLIC_* are baked in here)
+chmod -R o+rX . && chmod o+r node_modules/.prisma/client/*.node   # www-data must read the build + Prisma engine
+chown root:www-data .env.production && chmod 640 .env.production   # ...but keep the secrets file private
 npm run db:push        # create collections + indexes on the fresh DB
 npm run db:seed        # optional: load the Northbound demo workspace
 

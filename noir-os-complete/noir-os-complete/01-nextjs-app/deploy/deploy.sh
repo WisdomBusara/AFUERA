@@ -34,6 +34,10 @@ npm ci
 echo "==> Building (NODE_OPTIONS=--max-old-space-size=$BUILD_MEM)"
 NODE_OPTIONS="--max-old-space-size=$BUILD_MEM" npm run build
 
+# Prisma writes its query engine as mode 751 whatever the umask, so the www-data service
+# cannot load it ("cannot open shared object file: Permission denied") until it is readable.
+chmod o+r node_modules/.prisma/client/*.node
+
 if [ "${1:-}" = "--seed" ]; then
   echo "==> Syncing schema + seeding"
   npm run db:push
