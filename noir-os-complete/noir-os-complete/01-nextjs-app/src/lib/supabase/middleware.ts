@@ -32,15 +32,18 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
 
-  if (!user && !isPublic) return redirectTo("/login");
-  if (user && path === "/login") return redirectTo("/board");
+  if (!user && !isPublic) return redirectTo(request, "/login");
+  if (user && path === "/login") return redirectTo(request, "/board");
 
   return response;
 }
 
-// Redirect with a relative Location. Behind a tunnel/proxy, `next start -H 127.0.0.1`
-// makes request.nextUrl resolve to the bind address (localhost:PORT), so an absolute
-// redirect built from it sends browsers to localhost. A relative path is host-agnostic.
-function redirectTo(path: string) {
-  return new NextResponse(null, { status: 307, headers: { Location: path } });
+// Behind a tunnel/proxy, `next start -H 127.0.0.1` makes request.nextUrl resolve to the
+// bind address (localhost:PORT), so a redirect built from it sends browsers to localhost.
+// Middleware redirects must be absolute, so rebuild the origin from the public Host.
+function redirectTo(request: NextRequest, path: string) {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  const origin = host ? `${proto}://${host}` : request.nextUrl.origin;
+  return NextResponse.redirect(new URL(path, origin));
 }
