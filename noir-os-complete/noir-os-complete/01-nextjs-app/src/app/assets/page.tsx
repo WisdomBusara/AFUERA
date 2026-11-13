@@ -33,7 +33,7 @@ export default async function AssetsPage() {
       boardCount={activeCount}
       approvalCount={approvalCount}
     >
-      <AssetsClient initial={dto} workspaceId={workspaceId} />
+      <AssetsClient initial={dto} />
     </AppShell>
   );
 }

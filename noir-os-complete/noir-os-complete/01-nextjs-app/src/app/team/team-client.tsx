@@ -84,7 +84,7 @@ function MemberRow({
           />
           {m.isSelf && <span className="afa-meta rounded bg-[var(--afa-surface-3)] px-1.5 py-px text-[10px]">You</span>}
           {m.linked ? (
-            <span className="flex items-center gap-1 text-[10.5px] font-semibold text-[var(--afa-ok)]" title="Signed in with a real login">
+            <span className="flex items-center gap-1 text-[10.5px] font-semibold text-[var(--afa-ok)]" title="Has a login">
               <ShieldCheck size={12} /> Linked
             </span>
           ) : (

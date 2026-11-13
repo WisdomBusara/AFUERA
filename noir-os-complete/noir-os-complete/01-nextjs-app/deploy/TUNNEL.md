@@ -55,7 +55,7 @@ docker exec afuera-mongo mongo --quiet --eval 'rs.status().myState' # 1 = primar
 ```bash
 cd /opt/afuera-app
 npm ci
-npm run build          # prisma generate + next build (NEXT_PUBLIC_* are baked in here)
+npm run build          # prisma generate + next build (needs .env.production: AUTH_SECRET is read here)
 chmod -R o+rX . && chmod o+r node_modules/.prisma/client/*.node   # www-data must read the build + Prisma engine
 chown root:www-data .env.production && chmod 640 .env.production   # ...but keep the secrets file private
 npm run db:push        # create collections + indexes on the fresh DB
@@ -84,25 +84,32 @@ sudo systemctl daemon-reload && sudo systemctl enable --now cloudflared-afuera
 Verify: `cloudflared tunnel list` shows `afuera` with connections, and the Cloudflare DNS
 record for `afuera` is a **proxied CNAME → `<id>.cfargotunnel.com`**.
 
-## 5. App configuration elsewhere
+## 5. First admin, uploads, daily brief
 
-- **Supabase → Authentication → URL Configuration:** set Site URL and add a Redirect URL
-  for `https://afuera.wisdombusara.com` (so email confirm / sign-in redirects resolve).
-- **Supabase → Storage:** confirm the public `assets` bucket + its two policies exist
-  (README has the SQL) — needed for the Asset Library.
-- **Daily brief (optional, replaces Vercel Cron):**
-  ```bash
-  sudo cp deploy/afuera-daily-brief.{service,timer} /etc/systemd/system/
-  sudo systemctl daemon-reload && sudo systemctl enable --now afuera-daily-brief.timer
-  systemctl list-timers afuera-daily-brief --no-pager
-  ```
+```bash
+# Uploads directory for the Asset Library (must be writable by the service user):
+sudo install -d -o www-data -g www-data -m 750 /var/lib/afuera/uploads
+
+# Create the first super admin (re-run any time to reset that password):
+ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='at-least-12-chars' ADMIN_NAME='Your Name' npm run db:admin
+
+# Daily brief (replaces Vercel Cron):
+sudo cp deploy/afuera-daily-brief.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now afuera-daily-brief.timer
+systemctl list-timers afuera-daily-brief --no-pager
+```
+
+There is no public sign-up: accounts are created with `npm run db:admin`.
+
+> `npm run db:seed` **wipes all members**, including admins. After seeding (or
+> `deploy.sh --seed`), run `npm run db:admin` again.
 
 ## 6. Health checks
 
 ```bash
 systemctl status afuera cloudflared-afuera --no-pager
 curl -sI http://127.0.0.1:3012 | head -1            # app, want 200
-curl -sI https://afuera.wisdombusara.com | head -1  # edge, want 200/307 (redirects to /brief→/login)
+curl -sI https://afuera.wisdombusara.com | head -1  # edge, want 307 → /login when signed out
 ```
 
 ## 7. Redeploys

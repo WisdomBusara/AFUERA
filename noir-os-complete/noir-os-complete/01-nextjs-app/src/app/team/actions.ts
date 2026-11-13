@@ -56,8 +56,8 @@ export async function createMember(input: z.infer<typeof createSchema>) {
       role: data.role,
       email: data.email || null,
       online: false,
-      // Roster profile not yet tied to a login. `authUserId` is required + unique, so we
-      // stamp a placeholder; a real sign-up provisions its own member via getSessionMember.
+      // Roster profile with no login (no passwordHash). `authUserId` is required + unique,
+      // so stamp a placeholder id.
       authUserId: `manual_${randomUUID()}`,
       workspaceId,
     },

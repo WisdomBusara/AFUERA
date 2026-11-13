@@ -1,13 +1,7 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-
-const PALETTE = ["#2E63F6", "#EC4899", "#8B5CF6", "#0EA5A4", "#F79009", "#12B76A"];
-
-function nameFromEmail(email: string) {
-  const local = email.split("@")[0].replace(/[._-]+/g, " ").trim();
-  return local.replace(/\b\w/g, (c) => c.toUpperCase()) || "Member";
-}
+import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
 export type SessionMember = {
   user: { id: string; email: string | null };
@@ -17,6 +11,7 @@ export type SessionMember = {
     initials: string;
     color: string;
     role: string;
+    isSuperAdmin: boolean;
     workspaceId: string;
     workspace: { id: string; name: string; slug: string };
   };
@@ -24,47 +19,31 @@ export type SessionMember = {
 };
 
 /**
- * Resolves the current Supabase user to a Member row. On first login the user is
- * provisioned into the demo workspace so a fresh signup lands on the seeded board.
- * Returns null when there's no session.
+ * Resolves the session cookie to a Member row. Accounts are created by an admin
+ * (`npm run db:admin`), not by public sign-up, so there is no provisioning here.
+ * Returns null when there is no valid session or the member can no longer sign in.
  */
 export async function getSessionMember(): Promise<SessionMember | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const memberId = await verifySession(token);
+  if (!memberId) return null;
 
-  let member = await prisma.member.findUnique({
-    where: { authUserId: user.id },
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
     include: { workspace: true },
   });
-
-  if (!member) {
-    const ws = await prisma.workspace.findFirst({ orderBy: { createdAt: "asc" } });
-    if (!ws) {
-      // Authenticated but nothing seeded — redirecting to /login would loop.
-      throw new Error("No workspace found. Run `npm run db:seed` to create the demo workspace.");
-    }
-    const email = user.email ?? "member@afuera.app";
-    const name = nameFromEmail(email);
-    const initials = name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
-    const color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
-
-    member = await prisma.member.create({
-      data: { name, initials, color, role: "Member", online: true, authUserId: user.id, email: user.email ?? null, workspaceId: ws.id },
-      include: { workspace: true },
-    });
-  }
+  // A member without a password is a roster-only profile and cannot hold a session.
+  if (!member || !member.passwordHash) return null;
 
   return {
-    user: { id: user.id, email: user.email ?? null },
+    user: { id: member.id, email: member.email },
     member: {
       id: member.id,
       name: member.name,
       initials: member.initials,
       color: member.color,
       role: member.role,
+      isSuperAdmin: member.isSuperAdmin,
       workspaceId: member.workspaceId,
       workspace: { id: member.workspace.id, name: member.workspace.name, slug: member.workspace.slug },
     },

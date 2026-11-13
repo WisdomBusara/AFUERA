@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Upload, Trash2, Play, FileText, ImageIcon, Loader2, Sparkles } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { createAsset, deleteAsset } from "./actions";
+import { deleteAsset } from "./actions";
 
 export type AssetDTO = {
   id: string;
@@ -15,30 +14,22 @@ export type AssetDTO = {
   uploaderName: string | null;
 };
 
-const BUCKET = "assets";
 const FILTERS = ["All", "Image", "Video", "Document"];
 
-function kindFromMime(mime: string) {
-  if (mime.startsWith("image/")) return "Image";
-  if (mime.startsWith("video/")) return "Video";
-  return "Document";
-}
 function fmtSize(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} MB`;
   if (n >= 1000) return `${Math.round(n / 1000)} KB`;
   return `${n} B`;
 }
-const safeName = (n: string) => n.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-export function AssetsClient({ initial, workspaceId }: { initial: AssetDTO[]; workspaceId: string }) {
-  const supabase = useMemo(() => createClient(), []);
+export function AssetsClient({ initial }: { initial: AssetDTO[] }) {
   const [assets, setAssets] = useState<AssetDTO[]>(initial);
   const [filter, setFilter] = useState("All");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const urlFor = (path: string) => supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  const urlFor = (path: string) => `/api/assets/file/${path.split("/").map(encodeURIComponent).join("/")}`;
   const shown = assets.filter((a) => filter === "All" || a.kind === filter);
 
   async function onFiles(files: FileList | null) {
@@ -47,24 +38,16 @@ export function AssetsClient({ initial, workspaceId }: { initial: AssetDTO[]; wo
     setError(null);
     try {
       for (const file of Array.from(files)) {
-        const path = `${workspaceId}/${crypto.randomUUID()}-${safeName(file.name)}`;
-        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type || undefined,
-        });
-        if (upErr) {
-          setError(`Upload failed: ${upErr.message}. Create a public "assets" bucket in Supabase Storage (see README).`);
+        const body = new FormData();
+        body.append("file", file);
+        const res = await fetch("/api/assets/upload", { method: "POST", body });
+        const json = (await res.json().catch(() => null)) as { ok: boolean; error?: string; asset?: AssetDTO } | null;
+        if (!json?.ok || !json.asset) {
+          setError(`Upload failed for ${file.name}: ${json?.error ?? `server returned ${res.status}`}`);
           continue;
         }
-        const kind = kindFromMime(file.type);
-        const res = await createAsset({ name: file.name, kind, mimeType: file.type || "application/octet-stream", path, size: file.size });
-        if (res?.ok) {
-          setAssets((a) => [
-            { id: res.id, name: file.name, kind, mimeType: file.type, path, size: file.size, uploaderName: "You" },
-            ...a,
-          ]);
-        }
+        const added = json.asset;
+        setAssets((a) => [added, ...a]);
       }
     } catch {
       setError("Something went wrong during upload.");
@@ -152,7 +135,7 @@ export function AssetsClient({ initial, workspaceId }: { initial: AssetDTO[]; wo
       )}
 
       <div className="mt-4 flex items-center gap-1.5 text-[11px] text-[var(--afa-ink-3)]">
-        <Sparkles size={11} /> Files upload to your Supabase Storage <code className="mono">assets</code> bucket; metadata is scoped to your workspace.
+        <Sparkles size={11} /> Files are stored on this server (25 MB max each) and are visible only to your workspace.
       </div>
     </div>
   );

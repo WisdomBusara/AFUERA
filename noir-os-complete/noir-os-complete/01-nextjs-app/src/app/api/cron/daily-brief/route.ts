@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getBriefData, renderBriefHtml } from "@/lib/brief";
-import { sendEmail } from "@/lib/email";
+import { emailConfigured, sendEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
   if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
-  if (!process.env.RESEND_API_KEY) {
-    return NextResponse.json({ ok: false, error: "RESEND_API_KEY not set" }, { status: 200 });
+  if (!emailConfigured()) {
+    return NextResponse.json({ ok: false, error: "SMTP is not configured" }, { status: 200 });
   }
 
   // Everyone who has linked an email address gets their own workspace's brief.

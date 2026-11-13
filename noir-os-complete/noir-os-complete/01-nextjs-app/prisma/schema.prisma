@@ -83,11 +83,13 @@ model Member {
   color    String // hex, drives the avatar
   role     String
   online   Boolean @default(false)
-  // Links this member to a Supabase auth user id (a UUID), or a "seed_*" placeholder for
-  // demo members. Required + unique on purpose: a MongoDB unique index rejects a second
+  // Stable external id: "local_*" for accounts, "seed_*"/"manual_*" for roster profiles. Required + unique on purpose: a MongoDB unique index rejects a second
   // null/missing value (Prisma issue #12827, no sparse index), so this is never empty.
   authUserId  String        @unique
   email       String?
+  // scrypt hash (see src/lib/password.ts). Null = roster-only profile that cannot sign in.
+  passwordHash String?
+  isSuperAdmin Boolean      @default(false)
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId String        @db.ObjectId
   items       ContentItem[]
@@ -213,7 +215,7 @@ model Asset {
   name         String
   kind         String // Image | Video | Document
   mimeType     String
-  path         String // object path within the Supabase Storage "assets" bucket
+  path         String // path under ASSETS_DIR: <workspaceId>/<uuid>-<name>
   size         Int
   uploaderId   String?
   uploaderName String?

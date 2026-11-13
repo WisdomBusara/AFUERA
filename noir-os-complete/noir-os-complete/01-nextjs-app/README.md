@@ -2,7 +2,14 @@
 
 Your **personal operating system** — projects, day-to-day plans, a morning brief that
 lands in your inbox, and a full content workspace, on one Next.js 15 + Prisma + MongoDB
-foundation with Supabase Auth and per-workspace scoping.
+foundation with built-in auth and per-workspace scoping.
+
+> **Current architecture (supersedes older Supabase/Resend/Vercel wording below):**
+> MongoDB via Prisma (replica set required) · built-in email/password login with a signed
+> session cookie — **no public sign-up**, accounts are created with `npm run db:admin` ·
+> Asset Library files on local disk (`ASSETS_DIR`) · email over SMTP (Brevo relay) ·
+> hosted on a VPS behind a Cloudflare Tunnel — see [`deploy/TUNNEL.md`](deploy/TUNNEL.md).
+> Env vars: see [`.env.example`](.env.example).
 
 Noir OS grew out of a content-operations platform (Afuera), so it ships with two layers:
 a **personal layer** (Daily Brief, Projects/Tasks, email check-ins) and a **content

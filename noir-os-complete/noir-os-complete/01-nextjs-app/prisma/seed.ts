@@ -69,7 +69,7 @@ async function main() {
   // MongoDB generates ObjectId `_id`s, so we can't hand-pick ids like the Postgres
   // seed did. Each row carries a logical `key` (stripped before insert); we create the
   // rows in order and map key → the generated id. `authUserId` is a required placeholder
-  // for these demo members — real members get their Supabase UUID at first login.
+  // for these demo members — accounts that can sign in are made with `npm run db:admin`.
   const memberSeed = [
     { key: "m_sam", name: "Sam Okafor", initials: "SO", color: "#2E63F6", role: "Content lead", online: true },
     { key: "m_maya", name: "Maya Reyes", initials: "MR", color: "#EC4899", role: "Design lead", online: true },
@@ -188,7 +188,7 @@ async function main() {
           { workspaceId: ws.id, title: "Ship Phase 1", priority: "High", dueDate: day(3), position: 1000 },
           { workspaceId: ws.id, title: "Write the launch post", priority: "Medium", dueDate: day(7), position: 2000 },
           { workspaceId: ws.id, title: "Record a demo video", priority: "Low", dueDate: day(9), position: 3000 },
-          { workspaceId: ws.id, title: "Set up Vercel + Supabase", priority: "High", done: true, position: 4000 },
+          { workspaceId: ws.id, title: "Set up the VPS + Mongo", priority: "High", done: true, position: 4000 },
         ],
       },
     },

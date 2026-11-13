@@ -8,15 +8,16 @@
 - Noir OS (`noir-os-complete`, originally "Afuera" marketing content ops): personal operating system combining project/task management, daily planning, email check-ins and an AI content workspace. Success = fully deployable, production-ready.
 
 ## Stack
-Next.js 15 (App Router), React 19, TypeScript, Tailwind; Prisma 6 + PostgreSQL via Supabase (Auth + Storage); Anthropic SDK (streaming); Resend + Vercel Cron; @dnd-kit, Recharts, Zod; deploy on Vercel.
+Next.js 15 (App Router), React 19, TypeScript, Tailwind; Prisma 6 + MongoDB (replica set required); built-in email/password auth (scrypt + signed session cookie, no public sign-up — `npm run db:admin`); asset uploads on local disk; Anthropic SDK (streaming); email via SMTP (Brevo relay) + a systemd timer; @dnd-kit, Recharts, Zod. Supabase, Resend and Vercel are no longer used.
+Hosted on the `ianprojects` VPS at https://afuera.wisdombusara.com via a dedicated Cloudflare Tunnel — runbook: `noir-os-complete/noir-os-complete/01-nextjs-app/deploy/TUNNEL.md`.
 Prisma models (10): Workspace, Member, Campaign, ContentItem, DailyMetric, BrandKit, AutomationRule, Asset, Project, Task.
 
 ## Modules
-Calendar, Card Detail Drawer, Dashboard, Analytics (Recharts), AI Workspace, Brand Kit, Content Hub, Asset Library, Automation, Projects & Tasks (dnd-kit), Daily Brief, email check-ins, Supabase Auth with workspace scoping.
+Calendar, Card Detail Drawer, Dashboard, Analytics (Recharts), AI Workspace, Brand Kit, Content Hub, Asset Library, Automation, Projects & Tasks (dnd-kit), Team, Daily Brief, email check-ins, workspace-scoped auth.
 
-## State at import (re-verify)
-- 58 TS/TSX files, syntax-verified, zero errors, delivered as `noir-os-complete.zip`. NOT yet booted on NOIR's machine.
-- Next: deploy to Vercel using the consolidated guide; wire env vars (Supabase, Resend, Anthropic). Possible: Gmail OAuth, Plaid, a proper cron scheduler.
+## State (2026-11-13)
+- Live on the VPS; builds and deploys with `deploy/deploy.sh`. `npm run db:seed` wipes all members, so re-run `npm run db:admin` after seeding.
+- Not built: Inbox Summary (Gmail OAuth), MoneyMap / PointPile, time-based automation triggers, password change / teammate invites in the UI.
 
 ## Principles
 - Be transparent about what is wired vs scaffolded; do not fake live data (Inbox Summary, finance).

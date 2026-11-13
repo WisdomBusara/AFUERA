@@ -27,8 +27,8 @@ export default async function TeamPage() {
     role: m.role,
     email: m.email,
     online: m.online,
-    // A member is "linked" once a real sign-up owns it; seed_/manual_ rows are roster-only.
-    linked: !m.authUserId.startsWith("manual_") && !m.authUserId.startsWith("seed_"),
+    // "Linked" = has a password and can sign in; the rest are roster-only profiles.
+    linked: Boolean(m.passwordHash),
     owned: m._count.items,
     isSelf: m.id === member.id,
   }));
