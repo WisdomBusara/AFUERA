@@ -11,4 +11,4 @@ After=network-online.target afuera.service
 [Service]
 Type=oneshot
 EnvironmentFile=/opt/afuera-app/.env.production
-ExecStart=/usr/bin/curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3011/api/cron/daily-brief
+ExecStart=/usr/bin/curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3012/api/cron/daily-brief

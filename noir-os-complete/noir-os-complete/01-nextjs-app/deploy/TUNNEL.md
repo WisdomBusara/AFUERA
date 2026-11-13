@@ -3,7 +3,7 @@
 Afuera / Noir OS is published at **`afuera.wisdombusara.com`** through a **dedicated
 Cloudflare Tunnel** (same pattern as koki), not the proxied-A-record + nginx path. No
 public port, no origin cert, no nginx block — the tunnel reaches the app directly on
-`127.0.0.1:3011`.
+`127.0.0.1:3012`.
 
 The box also runs a **shared** `cloudflared.service` (tunnel `soma`) for other projects,
 config `/etc/cloudflared/config.yml`. **Afuera must never go in that file** — it runs as
@@ -12,13 +12,13 @@ its own tunnel + its own service.
 | Thing | Value |
 |---|---|
 | Hostname | `afuera.wisdombusara.com` |
-| App | Next.js 15 under systemd `afuera`, `npm run start` on `127.0.0.1:3011` |
+| App | Next.js 15 under systemd `afuera`, `npm run start` on `127.0.0.1:3012` |
 | App dir | `/opt/afuera-app` → symlink to the nested `…/01-nextjs-app` |
 | Database | **dedicated** Mongo replica set, container `afuera-mongo`, `127.0.0.1:27018` |
 | Tunnel | dedicated tunnel `afuera`, service `cloudflared-afuera` |
 
-> **Pick a free port.** `3011` is the assumed app port — confirm nothing else uses it:
-> `sudo ss -ltnp | grep -E ':3011|:27018'` should be empty before you start.
+> **Pick a free port.** `3012` is the assumed app port — confirm nothing else uses it:
+> `sudo ss -ltnp | grep -E ':3012|:27018'` should be empty before you start.
 
 ---
 
@@ -37,10 +37,10 @@ cp deploy/.env.production.example .env.production   # then fill it in (see that 
 ```bash
 docker compose -f deploy/mongo/docker-compose.mongo.yml up -d
 # Initialise the single-node replica set ONCE:
-docker exec afuera-mongo mongosh --quiet --eval \
+docker exec afuera-mongo mongo --quiet --eval \
   'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27018"}]})'
 # Confirm it reached PRIMARY (prints "PRIMARY"):
-docker exec afuera-mongo mongosh --quiet --eval 'rs.status().myState' # 1 = primary
+docker exec afuera-mongo mongo --quiet --eval 'rs.status().myState' # 1 = primary
 ```
 
 `DATABASE_URL` is already set in `.env.production` to
@@ -60,7 +60,7 @@ npm run db:seed        # optional: load the Northbound demo workspace
 
 sudo cp deploy/afuera.service /etc/systemd/system/afuera.service
 sudo systemctl daemon-reload && sudo systemctl enable --now afuera
-curl -sI http://127.0.0.1:3011 | head -1    # want HTTP/1.1 200
+curl -sI http://127.0.0.1:3012 | head -1    # want HTTP/1.1 200
 ```
 
 ## 4. The tunnel + DNS (this is the "register the tunnel DNS" step)
@@ -98,7 +98,7 @@ record for `afuera` is a **proxied CNAME → `<id>.cfargotunnel.com`**.
 
 ```bash
 systemctl status afuera cloudflared-afuera --no-pager
-curl -sI http://127.0.0.1:3011 | head -1            # app, want 200
+curl -sI http://127.0.0.1:3012 | head -1            # app, want 200
 curl -sI https://afuera.wisdombusara.com | head -1  # edge, want 200/307 (redirects to /brief→/login)
 ```
 

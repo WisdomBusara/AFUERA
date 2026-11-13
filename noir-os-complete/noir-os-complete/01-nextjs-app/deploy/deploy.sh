@@ -11,7 +11,7 @@ set -euo pipefail
 APP_DIR="${AFUERA_DIR:-/opt/afuera-app}"   # symlink to the nested Next app; see deploy/TUNNEL.md
 BRANCH="${AFUERA_BRANCH:-main}"
 SERVICE="${AFUERA_SERVICE:-afuera}"
-PORT="${PORT:-3011}"
+PORT="${PORT:-3012}"
 BUILD_MEM="${AFUERA_BUILD_MEM:-1536}"      # Next build memory cap (MB); this box has OOM history
 
 cd "$APP_DIR"

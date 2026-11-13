@@ -8,7 +8,7 @@
 #
 # Bring up + initialise the replica set once (see deploy/TUNNEL.md step 2):
 #   docker compose -f deploy/mongo/docker-compose.mongo.yml up -d
-#   docker exec afuera-mongo mongosh --quiet --eval \
+#   docker exec afuera-mongo mongo --quiet --eval \
 #     'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27018"}]})'
 #
 # Then DATABASE_URL (in .env.production):
@@ -18,7 +18,7 @@
 
 services:
   afuera-mongo:
-    image: mongo:7
+    image: mongo:4.4.30-focal   # this CPU has no AVX, so MongoDB 5+ cannot run here
     container_name: afuera-mongo
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:

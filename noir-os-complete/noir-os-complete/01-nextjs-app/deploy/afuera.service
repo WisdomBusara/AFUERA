@@ -2,7 +2,7 @@
 #   sudo cp deploy/afuera.service /etc/systemd/system/afuera.service
 #   sudo systemctl daemon-reload && sudo systemctl enable --now afuera
 #
-# Mirrors koki.service. The dedicated Cloudflare tunnel reaches this on 127.0.0.1:3011.
+# Mirrors koki.service. The dedicated Cloudflare tunnel reaches this on 127.0.0.1:3012.
 # Next loads .env.production from WorkingDirectory at start, so server-side secrets
 # (DATABASE_URL, ANTHROPIC_API_KEY, RESEND_API_KEY, CRON_SECRET) live in that file,
 # NOT here. NEXT_PUBLIC_* are baked in at BUILD time, not read here.
@@ -19,9 +19,9 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=/opt/afuera-app
 Environment=NODE_ENV=production
-Environment=PORT=3011
+Environment=PORT=3012
 # Bind to loopback only; the Cloudflare tunnel is the public listener.
-ExecStart=/usr/bin/env npm run start -- -H 127.0.0.1 -p 3011
+ExecStart=/usr/bin/env npm run start -- -H 127.0.0.1 -p 3012
 Restart=always
 RestartSec=5
 User=www-data

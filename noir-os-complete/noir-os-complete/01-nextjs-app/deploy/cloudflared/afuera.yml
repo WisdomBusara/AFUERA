@@ -16,5 +16,5 @@ credentials-file: /root/.cloudflared/<AFUERA_TUNNEL_ID>.json  # created by `tunn
 
 ingress:
   - hostname: afuera.wisdombusara.com
-    service: http://localhost:3011     # the afuera.service Next app
+    service: http://localhost:3012     # the afuera.service Next app
   - service: http_status:404
