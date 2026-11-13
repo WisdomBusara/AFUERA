@@ -10,7 +10,7 @@ export const maxDuration = 60;
 // Daily check-in. Vercel Cron calls this with `Authorization: Bearer $CRON_SECRET`.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
   if (!emailConfigured()) {

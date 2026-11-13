@@ -152,6 +152,11 @@ export function CalendarClient({ initialCards }: { initialCards: CardDTO[] }) {
         onClose={() => setSelected(null)}
         onAdvance={handleAdvance}
         onReschedule={handleDrawerReschedule}
+        onChanged={(card) => {
+          setCards((prev) => prev.map((c) => (c.id === card.id ? card : c)));
+          setSelected((s) => (s && s.id === card.id ? card : s));
+        }}
+        onDeleted={(id) => setCards((prev) => prev.filter((c) => c.id !== id))}
       />
     </div>
   );

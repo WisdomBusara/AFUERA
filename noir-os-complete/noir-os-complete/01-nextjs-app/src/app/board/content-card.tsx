@@ -1,20 +1,13 @@
 "use client";
 
-import { Clock, MessageSquare, Paperclip, Play, Sparkles } from "lucide-react";
+import { Clock, MessageSquare, Play } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { CHANNEL_COLOR, CHANNEL_LABEL, TYPE_LABEL, VISUAL_STAGES } from "@/lib/constants";
 import { formatDay } from "@/lib/utils";
 import type { CardDTO } from "@/lib/types";
 
-function aiColors(v: number) {
-  if (v >= 85) return { color: "var(--afa-ok)", background: "#e6f7ef" };
-  if (v >= 65) return { color: "var(--afa-warn)", background: "#fef3e2" };
-  return { color: "var(--afa-ink-3)", background: "var(--afa-surface-3)" };
-}
-
 export function CardBody({ card }: { card: CardDTO }) {
   const showThumb = VISUAL_STAGES.includes(card.stage);
-  const ai = aiColors(card.aiScore);
 
   return (
     <>
@@ -48,9 +41,6 @@ export function CardBody({ card }: { card: CardDTO }) {
           <span className="afa-sdot" style={{ background: CHANNEL_COLOR[card.channel] }} />
           {CHANNEL_LABEL[card.channel]}
         </span>
-        <span className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={ai}>
-          <Sparkles size={10} /> <span className="mono">{card.aiScore}</span>
-        </span>
       </div>
 
       <div className="mt-2 flex items-center gap-2 border-t border-[var(--afa-line-2)] pt-2.5">
@@ -59,14 +49,9 @@ export function CardBody({ card }: { card: CardDTO }) {
           <Clock size={11} /> {formatDay(card.dueDate)}
         </span>
         <span className="ml-auto flex items-center gap-2.5">
-          {card.comments > 0 && (
+          {card.commentCount > 0 && (
             <span className="afa-meta flex items-center gap-1">
-              <MessageSquare size={11} /> {card.comments}
-            </span>
-          )}
-          {card.attachments > 0 && (
-            <span className="afa-meta flex items-center gap-1">
-              <Paperclip size={11} /> {card.attachments}
+              <MessageSquare size={11} /> {card.commentCount}
             </span>
           )}
         </span>

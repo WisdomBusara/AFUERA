@@ -2,8 +2,7 @@
 #
 # Afuera redeploy — pull latest, install, build, restart. Safe to re-run.
 #
-#   ./deploy/deploy.sh            # pull + build + restart
-#   ./deploy/deploy.sh --seed     # also push schema + seed the demo workspace after build
+#   ./deploy/deploy.sh            # pull + build + sync indexes + restart
 #
 # Override defaults with env vars, e.g.  AFUERA_DIR=/srv/afuera PORT=3020 ./deploy/deploy.sh
 set -euo pipefail
@@ -38,11 +37,9 @@ NODE_OPTIONS="--max-old-space-size=$BUILD_MEM" npm run build
 # cannot load it ("cannot open shared object file: Permission denied") until it is readable.
 chmod o+r node_modules/.prisma/client/*.node
 
-if [ "${1:-}" = "--seed" ]; then
-  echo "==> Syncing schema + seeding"
-  npm run db:push
-  npm run db:seed
-fi
+# Idempotent: creates any new collections/indexes the schema declares. Never touches data.
+echo "==> Syncing schema (indexes)"
+npm run db:push
 
 echo "==> Restarting $SERVICE"
 sudo systemctl restart "$SERVICE"

@@ -116,3 +116,81 @@ export async function createCard(input: z.infer<typeof createSchema>) {
   revalidatePath("/board");
   return { ok: true as const, id: card.id };
 }
+
+const updateSchema = z.object({
+  cardId: z.string().min(1),
+  title: z.string().min(1).max(160).optional(),
+  priority: z.nativeEnum(Priority).optional(),
+  dueDate: z.string().datetime().nullable().optional(),
+  type: z.nativeEnum(ContentType).optional(),
+  channel: z.nativeEnum(Channel).optional(),
+});
+
+export async function updateCard(input: z.infer<typeof updateSchema>) {
+  const { cardId, dueDate, ...rest } = updateSchema.parse(input);
+  await authorizeCard(cardId);
+
+  await prisma.contentItem.update({
+    where: { id: cardId },
+    data: { ...rest, ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}) },
+  });
+
+  revalidatePath("/board");
+  revalidatePath("/board/calendar");
+  return { ok: true as const };
+}
+
+export async function deleteCard(input: { cardId: string }) {
+  const { cardId } = z.object({ cardId: z.string().min(1) }).parse(input);
+  await authorizeCard(cardId);
+  await prisma.contentItem.delete({ where: { id: cardId } }); // cascades comments + metrics
+
+  revalidatePath("/board");
+  revalidatePath("/board/calendar");
+  return { ok: true as const };
+}
+
+/* ── Comments ─────────────────────────────────────────────────────────────── */
+
+export async function listComments(input: { cardId: string }) {
+  const { cardId } = z.object({ cardId: z.string().min(1) }).parse(input);
+  await authorizeCard(cardId);
+  const rows = await prisma.comment.findMany({ where: { contentItemId: cardId }, orderBy: { createdAt: "asc" } });
+  return rows.map((c) => ({
+    id: c.id, body: c.body, authorId: c.authorId, authorName: c.authorName, createdAt: c.createdAt.toISOString(),
+  }));
+}
+
+export async function addComment(input: { cardId: string; body: string }) {
+  const { cardId, body } = z
+    .object({ cardId: z.string().min(1), body: z.string().trim().min(1).max(2000) })
+    .parse(input);
+  const { session } = await authorizeCard(cardId);
+
+  const c = await prisma.comment.create({
+    data: {
+      body, contentItemId: cardId, workspaceId: session.workspaceId,
+      authorId: session.member.id, authorName: session.member.name,
+    },
+  });
+  revalidatePath("/board");
+  return {
+    ok: true as const,
+    comment: { id: c.id, body: c.body, authorId: c.authorId, authorName: c.authorName, createdAt: c.createdAt.toISOString() },
+  };
+}
+
+export async function deleteComment(input: { id: string }) {
+  const { id } = z.object({ id: z.string().min(1) }).parse(input);
+  const session = await getSessionMember();
+  if (!session?.workspaceId) throw new Error("Not authenticated");
+
+  const c = await prisma.comment.findUnique({ where: { id }, select: { workspaceId: true, authorId: true } });
+  if (!c || c.workspaceId !== session.workspaceId) throw new Error("Not found");
+  // Authors remove their own comments; a super admin can remove any.
+  if (c.authorId !== session.member.id && !session.member.isSuperAdmin) throw new Error("Not allowed");
+
+  await prisma.comment.delete({ where: { id } });
+  revalidatePath("/board");
+  return { ok: true as const };
+}

@@ -2,7 +2,8 @@ import { randomUUID } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
 
-// Creates (or resets the password of) a super admin who can sign in.
+// Creates (or resets the password of) a super admin who can sign in. On a fresh database
+// it also creates the (empty) workspace — there is no demo data to seed.
 //   ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='...' [ADMIN_NAME='Your Name'] npm run db:admin
 // Safe to re-run: an existing member with that email is updated in place.
 

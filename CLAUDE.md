@@ -16,9 +16,12 @@ Prisma models (10): Workspace, Member, Campaign, ContentItem, DailyMetric, Brand
 Calendar, Card Detail Drawer, Dashboard, Analytics (Recharts), AI Workspace, Brand Kit, Content Hub, Asset Library, Automation, Projects & Tasks (dnd-kit), Team, Daily Brief, email check-ins, workspace-scoped auth.
 
 ## State (2026-11-13)
-- Live on the VPS; builds and deploys with `deploy/deploy.sh`. `npm run db:seed` wipes all members, so re-run `npm run db:admin` after seeding.
-- Not built: Inbox Summary (Gmail OAuth), MoneyMap / PointPile, time-based automation triggers, password change / teammate invites in the UI.
+- Live on the VPS; builds and deploys with `deploy/deploy.sh`. There is no seed/demo data: `npm run db:admin` creates the first super admin and an empty workspace.
+- Every number shown is derived from real rows (no AI score, no campaign "health"); analytics come from metrics logged by hand on the Analytics page.
+- Automations: stage-entry rules run inline in `moveCard`; publish-date and campaign-end rules run from `/api/cron/automations` via a 15-minute systemd timer.
+- Not built: Inbox Summary (Gmail OAuth), MoneyMap / PointPile, reassigning a card's owner or campaign after creation, real social publishing.
 
 ## Principles
+- Never add seeded, sample or placeholder data to make a screen look full; build the empty state instead.
 - Be transparent about what is wired vs scaffolded; do not fake live data (Inbox Summary, finance).
 - Automation executes event-driven stage-entry rules immediately; date/campaign triggers need a separate scheduler (flagged).

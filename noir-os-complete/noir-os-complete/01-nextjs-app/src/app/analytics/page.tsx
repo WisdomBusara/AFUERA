@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireMember } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { TrendChart, type TrendPoint } from "./analytics-charts";
+import { MetricsLog, type MetricItem, type MetricRow } from "./metrics-log";
 import { CHANNEL_LABEL, CHANNEL_COLOR } from "@/lib/constants";
 import { TrendingUp, BarChart3, Hash, Star, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
@@ -33,7 +34,7 @@ export default async function AnalyticsPage() {
   cutoff.setHours(0, 0, 0, 0);
   cutoff.setDate(cutoff.getDate() - 56);
 
-  const [byDay, byChannel, byContent, approvalCount, activeCount] = await Promise.all([
+  const [byDay, byChannel, byContent, approvalCount, activeCount, loggable, recentRows] = await Promise.all([
     prisma.dailyMetric.groupBy({
       by: ["date"],
       where: { workspaceId, date: { gte: cutoff } },
@@ -54,7 +55,25 @@ export default async function AnalyticsPage() {
     }),
     prisma.contentItem.count({ where: { workspaceId, stage: { in: APPROVAL_STAGES } } }),
     prisma.contentItem.count({ where: { workspaceId, stage: { notIn: [Stage.PUBLISHED, Stage.ARCHIVED] } } }),
+    // Only live content can have performance numbers.
+    prisma.contentItem.findMany({
+      where: { workspaceId, stage: { in: [Stage.PUBLISHED, Stage.REPURPOSE] } },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, channel: true },
+    }),
+    prisma.dailyMetric.findMany({
+      where: { workspaceId },
+      orderBy: { date: "desc" },
+      take: 15,
+      include: { content: { select: { title: true } } },
+    }),
   ]);
+
+  const logItems: MetricItem[] = loggable.map((i) => ({ id: i.id, title: i.title, channelLabel: CHANNEL_LABEL[i.channel] }));
+  const recent: MetricRow[] = recentRows.map((r) => ({
+    id: r.id, day: r.date.toISOString().slice(0, 10), title: r.content.title,
+    impressions: r.impressions, reach: r.reach, engagements: r.engagements, clicks: r.clicks,
+  }));
 
   const shell = {
     title: "Analytics",
@@ -68,8 +87,11 @@ export default async function AnalyticsPage() {
   if (byDay.length === 0) {
     return (
       <AppShell {...shell}>
-        <div className="px-6 py-16 text-center text-[13px] text-[var(--afa-ink-3)]">
-          No analytics yet. Publish content and daily metrics will appear here.
+        <div className="px-6 py-5 md:px-[26px]">
+          <div className="afa-panel px-6 py-10 text-center text-[13px] text-[var(--afa-ink-3)]">
+            No performance data in the last 8 weeks. Log numbers for your published content below and the charts will appear.
+          </div>
+          <MetricsLog items={logItems} recent={recent} />
         </div>
       </AppShell>
     );
@@ -216,8 +238,10 @@ export default async function AnalyticsPage() {
           </div>
         </div>
 
+        <MetricsLog items={logItems} recent={recent} />
+
         <div className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-[var(--afa-ink-3)]">
-          <BarChart3 size={12} /> Metrics aggregate the workspace&apos;s DailyMetric rows over the last 56 days.
+          <BarChart3 size={12} /> Charts total the numbers logged below over the last 56 days. Nothing here is estimated.
         </div>
       </div>
     </AppShell>

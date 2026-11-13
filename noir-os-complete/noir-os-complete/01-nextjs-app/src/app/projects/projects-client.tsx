@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Check, Calendar, FolderKanban, Inbox, ChevronDown } from "lucide-react";
 import {
-  createProject, updateProject, deleteProject, createTask, toggleTask, deleteTask,
+  createProject, updateProject, deleteProject, createTask, toggleTask, deleteTask, updateTask,
 } from "./actions";
 
 export type TaskDTO = {
@@ -56,7 +56,16 @@ function AddTask({ onAdd }: { onAdd: (title: string) => void }) {
   );
 }
 
-function TaskRow({ task, onToggle, onDelete }: { task: TaskDTO; onToggle: () => void; onDelete: () => void }) {
+const PRIO_NEXT: Record<TaskDTO["priority"], TaskDTO["priority"]> = { Low: "Medium", Medium: "High", High: "Low" };
+
+function TaskRow({
+  task, onToggle, onDelete, onUpdate,
+}: {
+  task: TaskDTO;
+  onToggle: () => void;
+  onDelete: () => void;
+  onUpdate: (patch: Partial<Pick<TaskDTO, "dueDate" | "priority">>) => void;
+}) {
   const due = fmtDue(task.dueDate);
   return (
     <div className="group flex items-center gap-2.5 border-t border-[var(--afa-line-2)] px-1 py-2">
@@ -68,12 +77,29 @@ function TaskRow({ task, onToggle, onDelete }: { task: TaskDTO; onToggle: () => 
         {task.done && <Check size={12} />}
       </button>
       <span className={"flex-1 text-[13px] " + (task.done ? "text-[var(--afa-ink-4)] line-through" : "text-[var(--afa-ink)]")}>{task.title}</span>
-      {!task.done && <span className="afa-sdot" style={{ background: PRIO_COLOR[task.priority] }} title={`${task.priority} priority`} />}
-      {due && (
-        <span className="afa-meta flex items-center gap-1" style={{ color: due.overdue ? "var(--afa-bad)" : undefined }}>
-          <Calendar size={11} /> {due.label}
-        </span>
+      {!task.done && (
+        <button
+          onClick={() => onUpdate({ priority: PRIO_NEXT[task.priority] })}
+          className="afa-meta flex items-center gap-1 rounded px-1 hover:bg-[var(--afa-surface-3)]"
+          title="Click to change priority"
+        >
+          <span className="afa-sdot" style={{ background: PRIO_COLOR[task.priority] }} /> {task.priority}
+        </button>
       )}
+      <label
+        className="afa-meta flex cursor-pointer items-center gap-1 rounded px-1 hover:bg-[var(--afa-surface-3)]"
+        style={{ color: due?.overdue && !task.done ? "var(--afa-bad)" : undefined }}
+        title="Due date"
+      >
+        <Calendar size={11} /> {due ? due.label : "no date"}
+        <input
+          type="date"
+          aria-label="Due date"
+          className="w-[18px] cursor-pointer bg-transparent text-transparent outline-none"
+          value={task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : ""}
+          onChange={(e) => onUpdate({ dueDate: e.target.value ? new Date(`${e.target.value}T09:00:00`).toISOString() : null })}
+        />
+      </label>
       <button onClick={onDelete} className="opacity-0 transition group-hover:opacity-100 text-[var(--afa-ink-4)] hover:text-[var(--afa-bad)]" aria-label="Delete task">
         <Trash2 size={14} />
       </button>
@@ -114,6 +140,13 @@ export function ProjectsClient({ initialProjects, initialLoose }: { initialProje
     if (task.projectId) setProjects((ps) => ps.map((p) => (p.id === task.projectId ? { ...p, tasks: p.tasks.map((t) => (t.id === task.id ? { ...t, done } : t)) } : p)));
     else setLoose((l) => l.map((t) => (t.id === task.id ? { ...t, done } : t)));
     toggleTask({ id: task.id, done }).catch(() => {});
+  }
+
+  function editTask(task: TaskDTO, patch: Partial<Pick<TaskDTO, "dueDate" | "priority">>) {
+    const apply = (t: TaskDTO) => (t.id === task.id ? { ...t, ...patch } : t);
+    if (task.projectId) setProjects((ps) => ps.map((p) => (p.id === task.projectId ? { ...p, tasks: p.tasks.map(apply) } : p)));
+    else setLoose((l) => l.map(apply));
+    updateTask({ id: task.id, ...patch }).catch(() => {});
   }
 
   function removeTask(task: TaskDTO) {
@@ -198,7 +231,7 @@ export function ProjectsClient({ initialProjects, initialLoose }: { initialProje
             <div className="afa-meter mb-2"><i style={{ width: `${pct}%`, background: p.color }} /></div>
 
             {p.tasks.map((t) => (
-              <TaskRow key={t.id} task={t} onToggle={() => toggle(t)} onDelete={() => removeTask(t)} />
+              <TaskRow key={t.id} task={t} onToggle={() => toggle(t)} onDelete={() => removeTask(t)} onUpdate={(patch) => editTask(t, patch)} />
             ))}
             <div className="border-t border-[var(--afa-line-2)]">
               <AddTask onAdd={(title) => addTask(p.id, title)} />
@@ -216,7 +249,7 @@ export function ProjectsClient({ initialProjects, initialLoose }: { initialProje
         </div>
         <div className="mt-3">
           {loose.map((t) => (
-            <TaskRow key={t.id} task={t} onToggle={() => toggle(t)} onDelete={() => removeTask(t)} />
+            <TaskRow key={t.id} task={t} onToggle={() => toggle(t)} onDelete={() => removeTask(t)} onUpdate={(patch) => editTask(t, patch)} />
           ))}
           <div className="border-t border-[var(--afa-line-2)]">
             <AddTask onAdd={(title) => addTask(null, title)} />

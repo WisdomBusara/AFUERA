@@ -41,7 +41,7 @@ export default async function TeamPage() {
       boardCount={activeCount}
       approvalCount={approvalCount}
     >
-      <TeamClient initialMembers={dtos} />
+      <TeamClient initialMembers={dtos} canManage={member.isSuperAdmin} workspaceName={member.workspace.name} />
     </AppShell>
   );
 }

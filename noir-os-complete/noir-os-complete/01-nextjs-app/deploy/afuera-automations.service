@@ -1,0 +1,13 @@
+# Afuera automation scheduler tick — runs the time-based rules (publish date arrives,
+# campaign ends). Oneshot; paired with afuera-automations.timer (every 15 minutes).
+#   sudo cp deploy/afuera-automations.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now afuera-automations.timer
+
+[Unit]
+Description=Afuera scheduled automations (GET /api/cron/automations)
+After=network-online.target afuera.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/opt/afuera-app/.env.production
+ExecStart=/usr/bin/curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3012/api/cron/automations

@@ -59,7 +59,6 @@ npm run build          # prisma generate + next build (needs .env.production: AU
 chmod -R o+rX . && chmod o+r node_modules/.prisma/client/*.node   # www-data must read the build + Prisma engine
 chown root:www-data .env.production && chmod 640 .env.production   # ...but keep the secrets file private
 npm run db:push        # create collections + indexes on the fresh DB
-npm run db:seed        # optional: load the Northbound demo workspace
 
 sudo cp deploy/afuera.service /etc/systemd/system/afuera.service
 sudo systemctl daemon-reload && sudo systemctl enable --now afuera
@@ -93,16 +92,16 @@ sudo install -d -o www-data -g www-data -m 750 /var/lib/afuera/uploads
 # Create the first super admin (re-run any time to reset that password):
 ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='at-least-12-chars' ADMIN_NAME='Your Name' npm run db:admin
 
-# Daily brief (replaces Vercel Cron):
-sudo cp deploy/afuera-daily-brief.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now afuera-daily-brief.timer
-systemctl list-timers afuera-daily-brief --no-pager
+# Timers: the daily brief (13:00 UTC) and the automation scheduler (every 15 min).
+sudo cp deploy/afuera-daily-brief.{service,timer} deploy/afuera-automations.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now afuera-daily-brief.timer afuera-automations.timer
+systemctl list-timers 'afuera-*' --no-pager
 ```
 
-There is no public sign-up: accounts are created with `npm run db:admin`.
-
-> `npm run db:seed` **wipes all members**, including admins. After seeding (or
-> `deploy.sh --seed`), run `npm run db:admin` again.
+There is no public sign-up and no demo data. `npm run db:admin` creates the first super
+admin (and an empty workspace if none exists); they add teammates and set their passwords
+on the Team page.
 
 ## 6. Health checks
 
@@ -115,8 +114,7 @@ curl -sI https://afuera.wisdombusara.com | head -1  # edge, want 307 → /login 
 ## 7. Redeploys
 
 ```bash
-/opt/afuera-app/deploy/deploy.sh          # pull + build + restart
-/opt/afuera-app/deploy/deploy.sh --seed   # also db:push + db:seed
+/opt/afuera-app/deploy/deploy.sh          # pull + build + sync indexes + restart
 ```
 
 ## Don't

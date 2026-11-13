@@ -59,6 +59,28 @@ export function CreateCardDialog({
 
   if (!open) return null;
 
+  // A card needs a campaign to live in; send people to create one first.
+  if (campaigns.length === 0) {
+    return (
+      <div className="afa-modal-wrap" onClick={onClose}>
+        <div className="afa-modal p-6 text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="text-[15px] font-semibold tracking-tight">Create a campaign first</div>
+          <p className="mx-auto mt-2 max-w-xs text-[13px] text-[var(--afa-ink-2)]">
+            Every piece of content belongs to a campaign. Add one, then come back to create cards.
+          </p>
+          <div className="mt-5 flex justify-center gap-2">
+            <button className="rounded-[9px] border border-[var(--afa-line)] px-4 py-2 text-[13px] font-semibold text-[var(--afa-ink-2)] hover:bg-[var(--afa-surface-3)]" onClick={onClose}>
+              Cancel
+            </button>
+            <a href="/campaigns" className="rounded-[9px] bg-[var(--afa-accent)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[var(--afa-accent-ink)]">
+              Go to Campaigns
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || !campaignId || !ownerId) {
@@ -80,9 +102,7 @@ export function CreateCardDialog({
         stage,
         position: 0, // sits at the top of its column; server holds the real value
         priority: "MEDIUM",
-        aiScore: 60,
-        comments: 0,
-        attachments: 0,
+        commentCount: 0,
         dueDate: null,
         publishAt: null,
         campaign: { id: campaign.id, name: campaign.name, color: campaign.color },
@@ -117,7 +137,7 @@ export function CreateCardDialog({
               className="afa-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Trailhead sunrise reel — 20s"
+              placeholder="What are you making?"
               maxLength={160}
             />
           </div>

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireMember } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { ApprovalsClient } from "./approvals-client";
-import type { CardDTO } from "@/lib/types";
+import { cardInclude, toCardDTO } from "@/lib/cards";
 
 export const dynamic = "force-dynamic";
 
@@ -15,28 +15,10 @@ export default async function ApprovalsPage() {
   const items = await prisma.contentItem.findMany({
     where: { workspaceId, stage: { in: APPROVAL_STAGES } },
     orderBy: [{ stage: "desc" }, { dueDate: "asc" }],
-    include: {
-      campaign: { select: { id: true, name: true, color: true } },
-      owner: { select: { id: true, name: true, initials: true, color: true } },
-    },
+    include: cardInclude,
   });
 
-  const cards: CardDTO[] = items.map((i) => ({
-    id: i.id,
-    title: i.title,
-    type: i.type,
-    channel: i.channel,
-    stage: i.stage,
-    position: i.position,
-    priority: i.priority,
-    aiScore: i.aiScore,
-    comments: i.comments,
-    attachments: i.attachments,
-    dueDate: i.dueDate ? i.dueDate.toISOString() : null,
-    publishAt: i.publishAt ? i.publishAt.toISOString() : null,
-    campaign: i.campaign,
-    owner: i.owner,
-  }));
+  const cards = items.map(toCardDTO);
 
   const activeCount = await prisma.contentItem.count({
     where: { workspaceId, stage: { notIn: [Stage.PUBLISHED, Stage.ARCHIVED] } },

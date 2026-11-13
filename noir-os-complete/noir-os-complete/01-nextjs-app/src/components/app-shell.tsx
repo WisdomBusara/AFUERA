@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, LayoutGrid, FolderOpen, Megaphone, ShieldCheck, Sparkles,
-  Image as ImageIcon, Palette, BarChart3, Zap, Users, Search, Bell, Plus, Menu,
-  ChevronDown, LogOut, Sunrise, FolderKanban,
+  Image as ImageIcon, Palette, BarChart3, Zap, Users, Search, Plus, Menu,
+  LogOut, Sunrise, FolderKanban,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { signout } from "@/app/auth/actions";
@@ -84,15 +84,14 @@ export function AppShell({
           </div>
         </div>
 
-        <div className="mx-3 mb-2 flex cursor-pointer items-center gap-2.5 rounded-xl border border-[var(--afa-line)] bg-[var(--afa-surface-2)] px-2.5 py-2">
+        <div className="mx-3 mb-2 flex items-center gap-2.5 rounded-xl border border-[var(--afa-line)] bg-[var(--afa-surface-2)] px-2.5 py-2">
           <div className="grid h-[26px] w-[26px] place-items-center rounded-lg text-[12px] font-bold text-white" style={{ background: "linear-gradient(135deg,#171A21,#3A4150)" }}>
             {workspaceName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
             <div className="truncate text-[12.5px] font-semibold leading-none">{workspaceName}</div>
-            <div className="text-[10.5px] text-[var(--afa-ink-3)]">Outdoor · Marketing</div>
+            <div className="text-[10.5px] text-[var(--afa-ink-3)]">Workspace</div>
           </div>
-          <ChevronDown size={15} className="ml-auto text-[var(--afa-ink-4)]" />
         </div>
 
         <nav className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2">
@@ -148,24 +147,24 @@ export function AppShell({
           </button>
           <div className="text-[14.5px] font-semibold tracking-tight">{title}</div>
 
-          <div className="ml-1.5 hidden max-w-[420px] flex-1 cursor-text items-center gap-2 rounded-[10px] bg-[var(--afa-surface-3)] px-2.5 py-[7px] text-[var(--afa-ink-3)] sm:flex">
+          {/* Submits to the Content Hub, which filters by title. */}
+          <form action="/hub" className="ml-1.5 hidden max-w-[420px] flex-1 items-center gap-2 rounded-[10px] bg-[var(--afa-surface-3)] px-2.5 py-[7px] text-[var(--afa-ink-3)] sm:flex">
             <Search size={15} />
-            <span className="text-[13px]">Search or ask AI…</span>
-            <span className="mono ml-auto rounded-[5px] border border-[var(--afa-line)] bg-[var(--afa-surface)] px-1.5 py-px text-[10.5px]">⌘K</span>
-          </div>
+            <input name="q" placeholder="Search content…" aria-label="Search content" className="w-full bg-transparent text-[13px] text-[var(--afa-ink)] outline-none placeholder:text-[var(--afa-ink-3)]" />
+          </form>
 
           <div className="ml-auto flex items-center gap-1.5">
             {rightSlot}
-            <button className="relative grid h-[34px] w-[34px] place-items-center rounded-lg text-[var(--afa-ink-2)] hover:bg-[var(--afa-surface-3)]">
-              <Bell size={18} />
-              <span className="absolute right-2 top-[7px] h-1.5 w-1.5 rounded-full border-[1.5px] border-[var(--afa-surface)] bg-[var(--afa-bad)]" />
-            </button>
             <Link href="/ai" className="afa-ai-btn">
               <Sparkles size={15} /> Ask AI
             </Link>
             <button
               className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] bg-[var(--afa-accent)] px-3 text-[12.5px] font-semibold text-white hover:bg-[var(--afa-accent-ink)]"
-              onClick={() => window.dispatchEvent(new CustomEvent("afuera:create"))}
+              onClick={() => {
+                // The composer lives on the board; from anywhere else, go there and open it.
+                if (pathname === "/board") window.dispatchEvent(new CustomEvent("afuera:create"));
+                else window.location.assign("/board?create=1");
+              }}
             >
               <Plus size={15} /> Create
             </button>

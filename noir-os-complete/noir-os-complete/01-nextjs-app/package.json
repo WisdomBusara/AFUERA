@@ -2,20 +2,16 @@
   "name": "afuera",
   "version": "0.1.0",
   "private": true,
-  "description": "Afuera — AI-powered Content Operations Platform. Reference scaffold: Next.js 15 App Router + Prisma/MongoDB + built-in auth + dnd-kit board wired end-to-end.",
+  "description": "Afuera \u2014 AI-powered Content Operations Platform. Reference scaffold: Next.js 15 App Router + Prisma/MongoDB + built-in auth + dnd-kit board wired end-to-end.",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
     "db:admin": "tsx prisma/create-admin.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

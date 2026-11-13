@@ -108,6 +108,16 @@ export function BoardClient({
     return () => window.removeEventListener("afuera:create", onCreate);
   }, []);
 
+  // Deep links from other pages: /board?create=1 opens the composer, /board?card=<id>
+  // opens that card. The params are consumed once and stripped from the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("create")) setComposerStage(Stage.IDEAS);
+    const wanted = params.get("card");
+    if (wanted) setSelected(initialCards.find((c) => c.id === wanted) ?? null);
+    if (params.has("create") || params.has("card")) window.history.replaceState(null, "", "/board");
+  }, [initialCards]);
+
   // Mirror latest columns so event handlers can compute without stale closures
   // and without side effects inside a state updater.
   const columnsRef = useRef(columns);
@@ -240,6 +250,20 @@ export function BoardClient({
     });
   }
 
+  // The drawer edited a card in place (title, priority, due date, comment count).
+  function handleChanged(card: CardDTO) {
+    setColumns((prev) => ({ ...prev, [card.stage]: prev[card.stage].map((c) => (c.id === card.id ? card : c)) }));
+    setSelected((s) => (s && s.id === card.id ? card : s));
+  }
+
+  function handleDeleted(cardId: string) {
+    setColumns((prev) => {
+      const next = { ...prev };
+      for (const s of STAGES) next[s.key] = prev[s.key].filter((c) => c.id !== cardId);
+      return next;
+    });
+  }
+
   // Insert a freshly created card at the top of its column (optimistic).
   function handleCreated(card: CardDTO) {
     setColumns((prev) => ({ ...prev, [card.stage]: [card, ...prev[card.stage]] }));
@@ -275,6 +299,8 @@ export function BoardClient({
         onClose={() => setSelected(null)}
         onAdvance={handleAdvance}
         onReschedule={handleReschedule}
+        onChanged={handleChanged}
+        onDeleted={handleDeleted}
       />
 
       <CreateCardDialog

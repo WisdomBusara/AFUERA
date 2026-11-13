@@ -62,23 +62,33 @@ export default async function DashboardPage() {
   })).filter((d) => d.value > 0);
 
   const campaignsWithCounts = campaigns
-    .map((c) => ({ ...c, count: items.filter((i) => i.campaignId === c.id).length }))
-    .sort((a, b) => b.health - a.health);
+    .map((c) => {
+      const list = items.filter((i) => i.campaignId === c.id);
+      const done = list.filter((i) => i.stage === Stage.PUBLISHED).length;
+      return { ...c, count: list.length, pct: list.length ? Math.round((done / list.length) * 100) : 0 };
+    })
+    .sort((a, b) => b.count - a.count);
 
-  // ── Data-driven recommendations (rule-based signals) ───────────────────────
-  const worst = [...campaigns].sort((a, b) => a.health - b.health)[0];
-  const topPub = [...published].sort((a, b) => b.aiScore - a.aiScore)[0];
+  // ── Rule-based signals, each computed from the rows above ───────────────────
   const recs: string[] = [];
-  if (worst) {
-    const inCampaign = items.filter((i) => i.campaignId === worst.id).length;
-    const awaiting = items.filter((i) => i.campaignId === worst.id && APPROVAL_STAGES.includes(i.stage)).length;
-    recs.push(`${worst.name} is trailing at ${worst.health}% health — ${inCampaign} items in flight${awaiting ? `, ${awaiting} awaiting sign-off. Prioritise those.` : "."}`);
+  const overdue = items.filter((i) => i.dueDate && i.dueDate < today && !TERMINAL_STAGES.includes(i.stage));
+  if (overdue.length) {
+    recs.push(`${overdue.length} item${overdue.length === 1 ? " is" : "s are"} past the due date and not yet published.`);
   }
   if (approvals.length) {
     recs.push(`${approvals.length} item${approvals.length === 1 ? " is" : "s are"} awaiting approval. Clearing the queue unblocks scheduling.`);
   }
-  if (topPub) {
-    recs.push(`“${topPub.title}” is your top performer (AI ${topPub.aiScore}). Repurpose it to extend reach.`);
+  const lateSchedule = scheduled.filter((i) => i.publishAt && i.publishAt < today);
+  if (lateSchedule.length) {
+    recs.push(`${lateSchedule.length} scheduled item${lateSchedule.length === 1 ? " has" : "s have"} a publish date in the past.`);
+  }
+  const in7 = new Date(today);
+  in7.setDate(in7.getDate() + 7);
+  for (const c of campaigns) {
+    if (c.endDate && c.endDate >= today && c.endDate <= in7) {
+      const open = items.filter((i) => i.campaignId === c.id && !TERMINAL_STAGES.includes(i.stage)).length;
+      if (open) recs.push(`${c.name} ends ${formatDay(c.endDate)} with ${open} item${open === 1 ? "" : "s"} still in progress.`);
+    }
   }
 
   const kpis = [
@@ -117,7 +127,7 @@ export default async function DashboardPage() {
             <div className="afa-panel">
               <div className="afa-panel-h">
                 <Sparkles size={15} color="#FF6F91" />
-                <h3>AI recommendations</h3>
+                <h3>Needs attention</h3>
                 <span className="more rounded-md bg-[#FFF0EA] px-2 py-0.5 text-[11px] font-semibold text-[#FF6F91]">{recs.length} signals</span>
               </div>
               <div className="pb-1.5">
@@ -167,7 +177,7 @@ export default async function DashboardPage() {
             <div className="afa-panel">
               <div className="afa-panel-h">
                 <Megaphone size={15} color="var(--afa-accent)" />
-                <h3>Campaign health</h3>
+                <h3>Campaign progress</h3>
               </div>
               <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
                 {campaignsWithCounts.map((c) => (
@@ -175,11 +185,14 @@ export default async function DashboardPage() {
                     <div className="mb-1.5 flex items-center gap-2">
                       <span className="afa-sdot" style={{ background: c.color }} />
                       <span className="text-[12.5px] font-semibold">{c.name}</span>
-                      <span className="afa-meta ml-auto">{c.count} items · {c.health}%</span>
+                      <span className="afa-meta ml-auto">{c.count} {c.count === 1 ? "item" : "items"} · {c.pct}% published</span>
                     </div>
-                    <div className="afa-meter"><i style={{ width: `${c.health}%`, opacity: c.health < 70 ? 0.6 : 1 }} /></div>
+                    <div className="afa-meter"><i style={{ width: `${c.pct}%`, background: c.color }} /></div>
                   </div>
                 ))}
+                {campaignsWithCounts.length === 0 && (
+                  <Link href="/campaigns" className="text-[12.5px] font-semibold text-[var(--afa-accent-ink)] hover:underline">Create your first campaign</Link>
+                )}
               </div>
             </div>
 
@@ -215,6 +228,7 @@ export default async function DashboardPage() {
                   <span className="afa-meta">{stageMeta(it.stage).label}</span>
                 </div>
               ))}
+              {recent.length === 0 && <div className="px-4 py-4 text-[12.5px] text-[var(--afa-ink-3)]">No content yet.</div>}
             </div>
           </div>
         </div>

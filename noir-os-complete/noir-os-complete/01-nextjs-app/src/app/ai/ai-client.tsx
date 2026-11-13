@@ -6,11 +6,11 @@ import { Sparkles, Send, Wand2 } from "lucide-react";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const PROMPTS = [
-  "Write 3 Instagram captions for a sunrise summit reel",
-  "Generate on-brand hashtags for a winter base-layer launch",
   "What should we publish this week, based on my pipeline?",
-  "Draft a content brief for the Q3 thought-leadership campaign",
-  "Rewrite this to match our brand voice: “Our advanced tech guarantees you stay dry.”",
+  "Write 3 caption options for my next scheduled post",
+  "Suggest on-brand hashtags for my current campaigns",
+  "Draft a content brief for one of my campaigns",
+  "Which items in my pipeline look stuck, and what should I do about them?",
 ];
 
 export function AIWorkspaceClient({ workspaceName }: { workspaceName: string }) {

@@ -102,9 +102,11 @@ model Campaign {
   id          String        @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   color       String // hex
-  objective   String
-  status      String        @default("On track")
-  health      Int           @default(80)
+  objective   String        @default("")
+  // Optional end date; drives the CAMPAIGN_ENDS automation trigger.
+  endDate     DateTime?
+  // Set once the CAMPAIGN_ENDS automations have run for this campaign.
+  endHandledAt DateTime?
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId String        @db.ObjectId
   items       ContentItem[]
@@ -122,9 +124,6 @@ model ContentItem {
   // Fractional index within a stage column. Lower = higher in the column.
   position    Float       @default(1000)
   priority    Priority    @default(MEDIUM)
-  aiScore     Int         @default(60)
-  comments    Int         @default(0)
-  attachments Int         @default(0)
   dueDate     DateTime?
   publishAt   DateTime?
 
@@ -135,6 +134,7 @@ model ContentItem {
   owner       Member        @relation(fields: [ownerId], references: [id])
   ownerId     String        @db.ObjectId
   metrics     DailyMetric[]
+  comments    Comment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -142,6 +142,20 @@ model ContentItem {
   @@index([workspaceId, stage, position])
   @@index([campaignId])
   @@index([ownerId])
+}
+
+model Comment {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  body          String
+  content       ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  contentItemId String      @db.ObjectId
+  workspaceId   String      @db.ObjectId
+  // Denormalised so a comment survives its author being removed from the team.
+  authorId      String      @db.ObjectId
+  authorName    String
+  createdAt     DateTime    @default(now())
+
+  @@index([contentItemId, createdAt])
 }
 
 model DailyMetric {
@@ -187,7 +201,7 @@ enum AutomationTrigger {
 
 enum AutomationAction {
   MOVE_TO_STAGE
-  NOTIFY_SLACK
+  NOTIFY_EMAIL
   CREATE_TASK
   ARCHIVE
 }

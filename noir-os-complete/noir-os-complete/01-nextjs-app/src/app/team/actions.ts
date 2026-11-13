@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionMember } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 
 const PALETTE = ["#2E63F6", "#EC4899", "#8B5CF6", "#0EA5A4", "#F79009", "#12B76A"];
 
@@ -54,7 +55,7 @@ export async function createMember(input: z.infer<typeof createSchema>) {
       initials: initialsFrom(data.name),
       color,
       role: data.role,
-      email: data.email || null,
+      email: data.email ? data.email.toLowerCase() : null,
       online: false,
       // Roster profile with no login (no passwordHash). `authUserId` is required + unique,
       // so stamp a placeholder id.
@@ -88,7 +89,7 @@ export async function updateMember(input: z.infer<typeof updateSchema>) {
       ...(data.name !== undefined ? { name: data.name, initials: initialsFrom(data.name) } : {}),
       ...(data.role !== undefined ? { role: data.role } : {}),
       ...(data.color !== undefined ? { color: data.color } : {}),
-      ...(data.email !== undefined ? { email: data.email || null } : {}),
+      ...(data.email !== undefined ? { email: data.email ? data.email.toLowerCase() : null } : {}),
       ...(data.online !== undefined ? { online: data.online } : {}),
     },
   });
@@ -117,5 +118,50 @@ export async function deleteMember(input: { id: string }) {
 
   await prisma.member.delete({ where: { id } });
   revalidatePath("/team");
+  return { ok: true as const };
+}
+
+/**
+ * Gives a member a password so they can sign in (or changes it). A super admin can do
+ * this for anyone; everyone else only for themselves. Sign-in is by email, so the
+ * member must have one.
+ */
+export async function setMemberPassword(input: { id: string; password: string }) {
+  const parsed = z
+    .object({ id: z.string().min(1), password: z.string().min(12, "Use at least 12 characters.").max(200) })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid password." };
+  const { id, password } = parsed.data;
+
+  const session = await requireSession();
+  if (id !== session.member.id && !session.member.isSuperAdmin) {
+    return { ok: false as const, error: "Only a super admin can set someone else's password." };
+  }
+
+  const member = await prisma.member.findUnique({ where: { id }, select: { workspaceId: true, email: true } });
+  if (!member || member.workspaceId !== session.workspaceId) return { ok: false as const, error: "Member not found." };
+  if (!member.email) return { ok: false as const, error: "Add an email for this member first — it is their sign-in name." };
+
+  // Sign-in looks members up by email, so two accounts must not share one.
+  const clash = await prisma.member.findFirst({
+    where: { email: member.email, passwordHash: { not: null }, NOT: { id } },
+    select: { id: true },
+  });
+  if (clash) return { ok: false as const, error: "Another account already signs in with that email." };
+
+  await prisma.member.update({ where: { id }, data: { passwordHash: await hashPassword(password) } });
+  revalidatePath("/team");
+  return { ok: true as const };
+}
+
+export async function renameWorkspace(input: { name: string }) {
+  const parsed = z.object({ name: z.string().trim().min(1).max(60) }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "Enter a workspace name (up to 60 characters)." };
+
+  const session = await requireSession();
+  if (!session.member.isSuperAdmin) return { ok: false as const, error: "Only a super admin can rename the workspace." };
+
+  await prisma.workspace.update({ where: { id: session.workspaceId }, data: { name: parsed.data.name } });
+  revalidatePath("/", "layout");
   return { ok: true as const };
 }

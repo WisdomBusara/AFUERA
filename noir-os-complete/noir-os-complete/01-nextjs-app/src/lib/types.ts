@@ -10,11 +10,17 @@ export type CardDTO = {
   stage: Stage;
   position: number;
   priority: Priority;
-  aiScore: number;
-  comments: number;
-  attachments: number;
+  commentCount: number;
   dueDate: string | null;
   publishAt: string | null;
   campaign: { id: string; name: string; color: string };
   owner: { id: string; name: string; initials: string; color: string };
+};
+
+export type CommentDTO = {
+  id: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
 };

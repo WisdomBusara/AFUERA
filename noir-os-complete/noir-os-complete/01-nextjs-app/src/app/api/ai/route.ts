@@ -34,7 +34,7 @@ Follow this voice whenever you generate content.`;
 async function buildContext(workspaceId: string, workspaceName: string) {
   const [byStage, campaigns, upcoming] = await Promise.all([
     prisma.contentItem.groupBy({ by: ["stage"], where: { workspaceId }, _count: { _all: true } }),
-    prisma.campaign.findMany({ where: { workspaceId }, select: { name: true, status: true, health: true } }),
+    prisma.campaign.findMany({ where: { workspaceId }, select: { name: true, endDate: true, _count: { select: { items: true } } } }),
     prisma.contentItem.findMany({
       where: { workspaceId, stage: Stage.SCHEDULED, publishAt: { not: null } },
       orderBy: { publishAt: "asc" }, take: 5,
@@ -43,7 +43,9 @@ async function buildContext(workspaceId: string, workspaceName: string) {
   ]);
 
   const stageLine = byStage.map((s) => `${s.stage.toLowerCase()} ${s._count._all}`).join(", ") || "empty";
-  const campLine = campaigns.map((c) => `${c.name} (${c.health}% health, ${c.status})`).join("; ") || "none";
+  const campLine = campaigns
+    .map((c) => `${c.name} (${c._count.items} items${c.endDate ? `, ends ${c.endDate.toISOString().slice(0, 10)}` : ""})`)
+    .join("; ") || "none";
   const upLine = upcoming
     .map((u) => `"${u.title}" — ${u.channel} on ${u.publishAt!.toISOString().slice(0, 10)}`)
     .join("; ") || "nothing scheduled";

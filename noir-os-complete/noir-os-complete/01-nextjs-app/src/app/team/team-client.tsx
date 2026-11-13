@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Mail, ShieldCheck, Clock } from "lucide-react";
+import { Plus, Trash2, Mail, ShieldCheck, Clock, KeyRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import { createMember, updateMember, deleteMember } from "./actions";
+import { createMember, updateMember, deleteMember, setMemberPassword, renameWorkspace } from "./actions";
 
 export type MemberDTO = {
   id: string;
@@ -48,13 +48,33 @@ function ColorDots({ value, onPick }: { value: string; onPick: (c: string) => vo
 
 function MemberRow({
   m,
+  canSetPassword,
   onUpdate,
   onDelete,
+  onError,
 }: {
   m: MemberDTO;
+  canSetPassword: boolean;
   onUpdate: (patch: Partial<MemberDTO>) => void;
   onDelete: () => void;
+  onError: (msg: string | null) => void;
 }) {
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pw, setPw] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function savePassword() {
+    if (saving) return;
+    setSaving(true);
+    onError(null);
+    const res = await setMemberPassword({ id: m.id, password: pw }).catch(() => ({ ok: false as const, error: "Couldn't set the password." }));
+    setSaving(false);
+    if (!res.ok) { onError(res.error); return; }
+    onUpdate({ linked: true });
+    setPw("");
+    setPwOpen(false);
+  }
+
   return (
     <div className="group flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-[var(--afa-line-2)] px-1 py-3 first:border-t-0">
       {/* Avatar + online dot */}
@@ -126,6 +146,18 @@ function MemberRow({
         {m.owned} owned
       </span>
 
+      {/* Password */}
+      {canSetPassword && (
+        <button
+          onClick={() => setPwOpen((o) => !o)}
+          className="text-[var(--afa-ink-4)] transition hover:text-[var(--afa-accent)]"
+          aria-label={m.linked ? "Change password" : "Set a password"}
+          title={m.linked ? "Change password" : "Set a password so they can sign in"}
+        >
+          <KeyRound size={15} />
+        </button>
+      )}
+
       {/* Delete */}
       <button
         onClick={onDelete}
@@ -136,11 +168,35 @@ function MemberRow({
       >
         <Trash2 size={15} />
       </button>
+
+      {pwOpen && (
+        <div className="flex w-full items-center gap-2 pl-[46px]">
+          <input
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") savePassword(); }}
+            placeholder={m.linked ? "New password (12+ characters)" : "Password (12+ characters)"}
+            autoComplete="new-password"
+            className="min-w-0 flex-1 rounded-[9px] border border-[var(--afa-line)] bg-[var(--afa-surface)] px-3 py-1.5 text-[12.5px] outline-none focus:border-[var(--afa-accent)]"
+          />
+          <button onClick={savePassword} disabled={pw.length < 12 || saving}
+            className="rounded-[9px] bg-[var(--afa-accent)] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[var(--afa-accent-ink)] disabled:opacity-50">
+            {m.linked ? "Change" : "Set password"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-export function TeamClient({ initialMembers }: { initialMembers: MemberDTO[] }) {
+export function TeamClient({
+  initialMembers, canManage, workspaceName,
+}: {
+  initialMembers: MemberDTO[];
+  canManage: boolean;
+  workspaceName: string;
+}) {
   const [members, setMembers] = useState<MemberDTO[]>(initialMembers);
   const [name, setName] = useState("");
   const [role, setRole] = useState(ROLES[0]);
@@ -175,6 +231,8 @@ export function TeamClient({ initialMembers }: { initialMembers: MemberDTO[] }) 
   function patch(id: string, p: Partial<MemberDTO>) {
     setMembers((ms) => ms.map((m) => (m.id === id ? { ...m, ...p } : m)));
     const { name, role, color, email, online } = p;
+    // `linked` (and other derived fields) are local-only; nothing to persist for them.
+    if ([name, role, color, email, online].every((v) => v === undefined)) return;
     updateMember({ id, name, role, color, email, online }).catch(() => {
       setError("Couldn't save that change.");
     });
@@ -195,6 +253,28 @@ export function TeamClient({ initialMembers }: { initialMembers: MemberDTO[] }) 
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-5 md:px-[26px]">
+      {canManage && (
+        <div className="afa-panel mb-4 flex flex-wrap items-center gap-3 p-3 pl-4">
+          <span className="afa-meta">Workspace name</span>
+          <input
+            defaultValue={workspaceName}
+            maxLength={60}
+            aria-label="Workspace name"
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (!v) { e.target.value = workspaceName; return; }
+              if (v === workspaceName) return;
+              setError(null);
+              renameWorkspace({ name: v })
+                .then((res) => { if (res.ok) window.location.reload(); else setError(res.error); })
+                .catch(() => setError("Couldn't rename the workspace."));
+            }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+            className="min-w-[160px] flex-1 rounded bg-transparent text-[14px] font-semibold outline-none focus:bg-[var(--afa-surface-3)] focus:px-1.5"
+          />
+        </div>
+      )}
+
       {/* Add teammate */}
       <div className="afa-panel mb-4 flex flex-wrap items-center gap-2 p-3">
         <input
@@ -235,7 +315,14 @@ export function TeamClient({ initialMembers }: { initialMembers: MemberDTO[] }) 
         </div>
         <div className="mt-2">
           {members.map((m) => (
-            <MemberRow key={m.id} m={m} onUpdate={(p) => patch(m.id, p)} onDelete={() => remove(m)} />
+            <MemberRow
+              key={m.id}
+              m={m}
+              canSetPassword={canManage || m.isSelf}
+              onUpdate={(p) => patch(m.id, p)}
+              onDelete={() => remove(m)}
+              onError={setError}
+            />
           ))}
           {members.length === 0 && (
             <div className="px-1 py-6 text-center text-[13px] text-[var(--afa-ink-4)]">

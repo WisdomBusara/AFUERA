@@ -3,38 +3,21 @@ import { requireMember } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { HubClient } from "./hub-client";
 import { APPROVAL_STAGES, TERMINAL_STAGES } from "@/lib/constants";
-import type { CardDTO } from "@/lib/types";
+import { cardInclude, toCardDTO } from "@/lib/cards";
 
 export const dynamic = "force-dynamic";
 
-export default async function HubPage() {
+export default async function HubPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
   const { member, workspaceId } = await requireMember();
 
   const items = await prisma.contentItem.findMany({
     where: { workspaceId },
     orderBy: { updatedAt: "desc" },
-    include: {
-      campaign: { select: { id: true, name: true, color: true } },
-      owner: { select: { id: true, name: true, initials: true, color: true } },
-    },
+    include: cardInclude,
   });
 
-  const cards: CardDTO[] = items.map((i) => ({
-    id: i.id,
-    title: i.title,
-    type: i.type,
-    channel: i.channel,
-    stage: i.stage,
-    position: i.position,
-    priority: i.priority,
-    aiScore: i.aiScore,
-    comments: i.comments,
-    attachments: i.attachments,
-    dueDate: i.dueDate ? i.dueDate.toISOString() : null,
-    publishAt: i.publishAt ? i.publishAt.toISOString() : null,
-    campaign: i.campaign,
-    owner: i.owner,
-  }));
+  const cards = items.map(toCardDTO);
 
   const approvalCount = cards.filter((c) => APPROVAL_STAGES.includes(c.stage)).length;
   const activeCount = cards.filter((c) => !TERMINAL_STAGES.includes(c.stage)).length;
@@ -47,7 +30,7 @@ export default async function HubPage() {
       boardCount={activeCount}
       approvalCount={approvalCount}
     >
-      <HubClient initial={cards} />
+      <HubClient initial={cards} initialQuery={typeof q === "string" ? q : ""} />
     </AppShell>
   );
 }
