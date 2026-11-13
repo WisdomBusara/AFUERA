@@ -32,17 +32,15 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
 
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && path === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/board";
-    return NextResponse.redirect(url);
-  }
+  if (!user && !isPublic) return redirectTo("/login");
+  if (user && path === "/login") return redirectTo("/board");
 
   return response;
+}
+
+// Redirect with a relative Location. Behind a tunnel/proxy, `next start -H 127.0.0.1`
+// makes request.nextUrl resolve to the bind address (localhost:PORT), so an absolute
+// redirect built from it sends browsers to localhost. A relative path is host-agnostic.
+function redirectTo(path: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: path } });
 }

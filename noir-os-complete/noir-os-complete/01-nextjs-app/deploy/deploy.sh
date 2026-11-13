@@ -7,6 +7,7 @@
 #
 # Override defaults with env vars, e.g.  AFUERA_DIR=/srv/afuera PORT=3020 ./deploy/deploy.sh
 set -euo pipefail
+umask 022   # build output must stay readable by www-data (the service user)
 
 APP_DIR="${AFUERA_DIR:-/opt/afuera-app}"   # symlink to the nested Next app; see deploy/TUNNEL.md
 BRANCH="${AFUERA_BRANCH:-main}"

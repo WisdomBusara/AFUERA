@@ -30,15 +30,16 @@ sudo git clone https://github.com/WisdomBusara/AFUERA.git /opt/afuera
 sudo ln -sfn /opt/afuera/noir-os-complete/noir-os-complete/01-nextjs-app /opt/afuera-app
 cd /opt/afuera-app
 cp deploy/.env.production.example .env.production   # then fill it in (see that file)
+ln -sfn .env.production .env                        # the Prisma CLI (db:push / db:seed) reads .env
 ```
 
 ## 2. Database — dedicated Mongo replica set (Prisma needs one)
 
 ```bash
-docker compose -f deploy/mongo/docker-compose.mongo.yml up -d
+docker compose -p afuera-mongo -f deploy/mongo/docker-compose.mongo.yml up -d
 # Initialise the single-node replica set ONCE:
 docker exec afuera-mongo mongo --quiet --eval \
-  'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27018"}]})'
+  'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]})'
 # Confirm it reached PRIMARY (prints "PRIMARY"):
 docker exec afuera-mongo mongo --quiet --eval 'rs.status().myState' # 1 = primary
 ```

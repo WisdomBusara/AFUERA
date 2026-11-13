@@ -9,7 +9,7 @@
 # Bring up + initialise the replica set once (see deploy/TUNNEL.md step 2):
 #   docker compose -f deploy/mongo/docker-compose.mongo.yml up -d
 #   docker exec afuera-mongo mongo --quiet --eval \
-#     'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27018"}]})'
+#     'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27017"}]})'
 #
 # Then DATABASE_URL (in .env.production):
 #   mongodb://127.0.0.1:27018/afuera?replicaSet=rs0&directConnection=true
